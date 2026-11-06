@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نشاط تفاعلي: تحديث بيانات جدول قاعدة البيانات في SQLite عبر Python</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Cairo & JetBrains Mono / Fira Code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Fira+Code:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Confetti JS for celebration -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+    }
+    .font-code {
+      font-family: 'Fira Code', monospace;
+    }
+    .ltr-dir {
+      direction: ltr !important;
+      text-align: left !important;
+    }
+
+    /* PyCharm Darcula Theme Simulation */
+    .pycharm-bg {
+      background-color: #2b2b2b;
+      color: #a9b7c6;
+    }
+    .pycharm-gutter {
+      background-color: #313335;
+      color: #606366;
+    }
+    .py-kw { color: #cc7832; font-weight: bold; }
+    .py-str { color: #6a8759; }
+    .py-num { color: #6897bb; font-weight: 600; }
+    .py-fn { color: #ffc66d; }
+    .py-com { color: #808080; font-style: italic; }
+
+    /* Visual Animations */
+    @keyframes pulseGlow {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.5);
+        background-color: rgba(254, 240, 138, 0.35);
+      }
+      50% {
+        box-shadow: 0 0 16px 4px rgba(234, 179, 8, 0.45);
+        background-color: rgba(253, 224, 71, 0.55);
+      }
+    }
+    .row-highlight {
+      animation: pulseGlow 1.8s infinite ease-in-out;
+      font-weight: 700;
+    }
+
+    @keyframes cellBounceSuccess {
+      0% {
+        transform: scale(0.85);
+        background-color: #34d399;
+        color: white;
+      }
+      50% {
+        transform: scale(1.18);
+        background-color: #10b981;
+        color: white;
+      }
+      100% {
+        transform: scale(1);
+        background-color: #d1fae5;
+        color: #065f46;
+      }
+    }
+    .cell-updated {
+      animation: cellBounceSuccess 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      border-radius: 6px;
+      display: inline-block;
+      padding: 2px 8px;
+    }
+
+    /* SQLite Grid Look */
+    .grid-cell {
+      border: 1px solid #e2e8f0;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 via-slate-50 to-sky-50 text-slate-800 min-h-screen flex flex-col antialiased select-none">
+
+  <!-- Top Navigation & Header -->
+  <header class="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 text-white shadow-xl sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-3">
+      
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-inner">
+          <i class="fa-solid fa-database text-yellow-300 text-2xl animate-pulse"></i>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-black tracking-wide flex items-center gap-2">
+            نشاط تفاعلي: تحديث بيانات الجدول <span class="font-code text-yellow-300 text-base sm:text-lg">UPDATE</span>
+          </h1>
+          <p class="text-blue-100 text-xs sm:text-sm">
+            محاكاة بيئة بايثون في <span class="font-bold text-white">PyCharm</span> وتطبيق التعديل على قاعدة البيانات <span class="font-code text-yellow-200">RomaShop.db</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2">
+        <button onclick="resetDatabase(true)" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 active:scale-95 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold border border-white/20 transition shadow-sm">
+          <i class="fa-solid fa-rotate-left text-amber-300"></i>
+          <span>إعادة تعيين البيانات 🔄</span>
+        </button>
+        <button onclick="toggleInfoModal()" class="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-slate-900 active:scale-95 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition shadow-md">
+          <i class="fa-solid fa-lightbulb"></i>
+          <span>دليل الشرح السريع</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 space-y-6 w-full">
+
+    <!-- Case Navigation Selector -->
+    <div class="bg-white rounded-2xl p-2.5 shadow-sm border border-slate-200 flex flex-col md:flex-row gap-2.5">
+      <button id="tab-btn-1" onclick="switchCase(1)" class="flex-1 py-3 px-4 rounded-xl font-extrabold flex items-center justify-between text-sm sm:text-base transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md">
+        <div class="flex items-center gap-3">
+          <span class="w-7 h-7 rounded-lg bg-white/20 flex items-center justify-center text-xs">١</span>
+          <span class="text-right">الحالة الأولى: تعديل عمود واحد بشرط (ex1update.py)</span>
+        </div>
+        <span class="text-xs bg-white/20 px-2.5 py-1 rounded-full font-code">id = 3 ➔ price = 9.0</span>
+      </button>
+
+      <button id="tab-btn-2" onclick="switchCase(2)" class="flex-1 py-3 px-4 rounded-xl font-extrabold flex items-center justify-between text-sm sm:text-base transition-all duration-300 text-slate-600 hover:bg-slate-100">
+        <div class="flex items-center gap-3">
+          <span class="w-7 h-7 rounded-lg bg-slate-200 flex items-center justify-center text-xs text-slate-700">٢</span>
+          <span class="text-right">الحالة الثانية: تعديل عمودين لعدة صفوف (ex2update.py)</span>
+        </div>
+        <span class="text-xs bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full font-code">color = 'black' (5 صفوف)</span>
+      </button>
+    </div>
+
+    <!-- Description & Hint Ribbon -->
+    <div id="case-ribbon" class="bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border-r-4 border-indigo-600 p-4 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+      <div class="space-y-1">
+        <div class="flex items-center gap-2">
+          <span class="bg-indigo-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full">المهمة المطلوبة</span>
+          <h2 id="ribbon-title" class="font-black text-slate-800 text-base sm:text-lg">تحديث وتعديل سعر المنتج الذي يحمل المعرف id=3 ليصبح 9.0</h2>
+        </div>
+        <p id="ribbon-desc" class="text-xs sm:text-sm text-slate-600">
+          لاحظ استخدام <span class="font-code font-bold text-indigo-700">SET price=? WHERE id=?</span> مع تمرير المعاملات <span class="font-code font-bold text-indigo-700">(9, 3)</span> للتأثير فقط على الفستان ذي المعرف 3.
+        </p>
+      </div>
+      <div class="shrink-0 flex items-center gap-2">
+        <span id="target-count-badge" class="bg-indigo-100 text-indigo-800 text-xs font-bold px-3 py-1.5 rounded-xl border border-indigo-200 flex items-center gap-1.5">
+          <i class="fa-solid fa-bullseye text-indigo-600"></i> عدد الصفوف المتأثرة: <b class="font-code text-sm">1</b> صف
+        </span>
+      </div>
+    </div>
+
+    <!-- Main Workspace (PyCharm & DB Browser) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+      
+      <!-- 1. PyCharm Environment Simulation (5 Cols) -->
+      <div class="lg:col-span-5 bg-[#2b2b2b] rounded-2xl shadow-xl border border-slate-700 overflow-hidden flex flex-col">
+        
+        <!-- PyCharm Title Bar -->
+        <div class="bg-[#1e1f22] px-4 py-2 flex items-center justify-between text-slate-300 text-xs border-b border-[#313335] select-none">
+          <div class="flex items-center gap-2">
+            <div class="flex gap-1.5">
+              <span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>
+              <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
+              <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+            </div>
+            <span class="font-bold flex items-center gap-1.5 text-slate-200 mr-2">
+              <i class="fa-brands fa-python text-yellow-400 text-sm"></i> PyCharm — RomaShop
+            </span>
+          </div>
+          <span class="text-[11px] text-slate-500 font-mono">SQLite3 Module</span>
+        </div>
+
+        <!-- PyCharm File Tabs -->
+        <div class="bg-[#313335] px-2 pt-2 flex items-center gap-1 border-b border-[#232425]">
+          <div id="file-tab-1" onclick="switchCase(1)" class="cursor-pointer bg-[#2b2b2b] text-white text-xs font-code px-3 py-1.5 rounded-t-lg flex items-center gap-2 border-t-2 border-blue-500 shadow-sm">
+            <i class="fa-brands fa-python text-sky-400"></i>
+            <span>ex1update.py</span>
+            <span class="text-slate-500 hover:text-white text-xs">×</span>
+          </div>
+          <div id="file-tab-2" onclick="switchCase(2)" class="cursor-pointer bg-[#232425] text-slate-400 hover:text-slate-200 text-xs font-code px-3 py-1.5 rounded-t-lg flex items-center gap-2 transition">
+            <i class="fa-brands fa-python text-slate-400"></i>
+            <span>ex2update.py</span>
+            <span class="text-slate-600 hover:text-white text-xs">×</span>
+          </div>
+        </div>
+
+        <!-- PyCharm Code Editor Area -->
+        <div class="pycharm-bg font-code text-xs sm:text-sm p-3 overflow-x-auto ltr-dir min-h-[290px] flex-1">
+          <div class="flex">
+            <!-- Line Numbers -->
+            <div id="line-gutter" class="pycharm-gutter pr-3 pl-1 select-none text-right font-code text-xs text-slate-500 border-r border-[#3c3f41] mr-3 leading-6">
+              1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9
+            </div>
+            <!-- Code Body -->
+            <pre id="code-content" class="leading-6 text-[#a9b7c6] flex-1 font-code overflow-x-auto"></pre>
+          </div>
+        </div>
+
+        <!-- PyCharm Run Controls -->
+        <div class="bg-[#313335] p-3 border-t border-[#3c3f41] flex flex-wrap items-center justify-between gap-3">
+          <button id="run-btn" onclick="executeCurrentCode()" class="flex items-center gap-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-black px-4 py-2 rounded-xl text-xs sm:text-sm transition shadow-lg shadow-emerald-950/40">
+            <i class="fa-solid fa-play text-emerald-200"></i>
+            <span>تشغيل الكود وتحديث الجدول ▶️ (Run)</span>
+          </button>
+          
+          <button onclick="toggleExplainCode()" class="flex items-center gap-1.5 text-xs text-sky-300 hover:text-sky-200 bg-white/10 px-3 py-1.5 rounded-lg transition">
+            <i class="fa-solid fa-code text-[11px]"></i>
+            <span>شرح أسطر الكود</span>
+          </button>
+        </div>
+
+        <!-- PyCharm Terminal / Run Window Output -->
+        <div class="bg-[#1e1f22] p-3 border-t border-slate-700 ltr-dir font-code text-xs select-text">
+          <div class="flex items-center justify-between text-slate-400 mb-2 border-b border-slate-800 pb-1.5">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-terminal text-emerald-400 text-xs"></i>
+              <span class="font-bold text-slate-200">Run:</span>
+              <span id="term-tab-title" class="text-slate-400">ex1update</span>
+            </div>
+            <button onclick="clearConsole()" class="text-[11px] text-slate-400 hover:text-white transition">مسح المخرجات</button>
+          </div>
+
+          <!-- Console Text Output Container -->
+          <div id="terminal-screen" class="space-y-1 min-h-[85px] max-h-[110px] overflow-y-auto font-mono text-[11px] sm:text-xs text-slate-300">
+            <p class="text-slate-500 italic">> اضغط زر التشغيل الأخضر (Run) لمشاهدة المخرجات هنا وتحديث الجدول مباشرة...</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 2. DB Browser for SQLite Simulation (7 Cols) -->
+      <div class="lg:col-span-7 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col">
+        
+        <!-- DB Browser Top Bar -->
+        <div class="bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 px-4 py-2 border-b border-slate-300 flex items-center justify-between text-xs text-slate-700">
+          <div class="flex items-center gap-2 font-bold">
+            <i class="fa-solid fa-table text-indigo-600"></i>
+            <span>DB Browser for SQLite - [RomaShop.db]</span>
+          </div>
+          <span class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-[11px] font-bold">Browse Data</span>
+        </div>
+
+        <!-- DB Browser Toolbar -->
+        <div class="bg-slate-50 px-3 py-2 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-3 text-slate-600 font-semibold">
+            <span class="flex items-center gap-1"><i class="fa-regular fa-folder-open text-amber-500"></i> Open</span>
+            <span class="flex items-center gap-1"><i class="fa-solid fa-floppy-disk text-emerald-600"></i> Write Changes</span>
+            <button onclick="resetDatabase(false)" class="flex items-center gap-1 hover:text-blue-600 transition">
+              <i class="fa-solid fa-rotate-left text-slate-500"></i> Revert
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label class="font-bold text-slate-700">Table:</label>
+            <div class="bg-white border border-slate-300 px-3 py-0.5 rounded font-code text-blue-700 font-bold flex items-center gap-2 shadow-sm">
+              <span>products</span>
+              <i class="fa-solid fa-caret-down text-slate-400 text-[10px]"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table Container (Strictly LTR matching images) -->
+        <div class="p-3 overflow-x-auto ltr-dir flex-1 bg-white">
+          <table class="w-full text-left text-xs sm:text-sm font-sans border-collapse border border-slate-200">
+            <thead>
+              <!-- Headers Row -->
+              <tr class="bg-slate-100 text-slate-700 font-bold uppercase text-[11px] sm:text-xs tracking-wider">
+                <th class="p-2 w-10 text-center bg-slate-200 text-slate-500 border border-slate-300">#</th>
+                <th class="p-2 text-center font-code border border-slate-300">id</th>
+                <th class="p-2 font-code border border-slate-300">product</th>
+                <th class="p-2 font-code border border-slate-300">size</th>
+                <th class="p-2 font-code border border-slate-300">color</th>
+                <th class="p-2 font-code text-right border border-slate-300">price</th>
+                <th class="p-2 text-center border border-slate-300 w-24">الحالة</th>
+              </tr>
+              <!-- Filter Inputs row mimicking DB Browser -->
+              <tr class="bg-slate-50 text-[10px] text-slate-400 font-mono">
+                <td class="p-1 text-center bg-slate-100 border border-slate-200"></td>
+                <td class="p-1 border border-slate-200"><input type="text" placeholder="Fil..." disabled class="w-full bg-white border border-slate-200 px-1 py-0.5 rounded text-[10px]"></td>
+                <td class="p-1 border border-slate-200"><input type="text" placeholder="Filter" disabled class="w-full bg-white border border-slate-200 px-1 py-0.5 rounded text-[10px]"></td>
+                <td class="p-1 border border-slate-200"><input type="text" placeholder="Filter" disabled class="w-full bg-white border border-slate-200 px-1 py-0.5 rounded text-[10px]"></td>
+                <td class="p-1 border border-slate-200"><input type="text" placeholder="Filter" disabled class="w-full bg-white border border-slate-200 px-1 py-0.5 rounded text-[10px]"></td>
+                <td class="p-1 border border-slate-200"><input type="text" placeholder="Filter" disabled class="w-full bg-white border border-slate-200 px-1 py-0.5 rounded text-[10px]"></td>
+                <td class="p-1 border border-slate-200"></td>
+              </tr>
+            </thead>
+            <tbody id="table-rows">
+              <!-- Dynamically populated via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Table Status Footer -->
+        <div class="bg-slate-100 px-4 py-2 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600 ltr-dir">
+          <div class="flex items-center gap-2">
+            <span>Showing <strong class="text-slate-900">1-11 of 11</strong> rows</span>
+            <span class="text-slate-300">|</span>
+            <span id="db-status-label" class="text-emerald-700 font-bold flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-check"></i> جاهز للاستعلام
+            </span>
+          </div>
+          <div class="text-[11px] font-mono text-slate-500">UTF-8 | SQLite 3</div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Educational Explanation: SQL Statement Breakdown -->
+    <section class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+      <h3 class="font-black text-slate-800 text-base mb-3 flex items-center gap-2">
+        <i class="fa-solid fa-layer-group text-indigo-600"></i>
+        <span>تشريح جملة التحديث SQL وعلاقتها بكود بايثون</span>
+      </h3>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs sm:text-sm">
+        
+        <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200 space-y-1">
+          <span class="font-code font-bold text-amber-800 bg-amber-200/80 px-2 py-0.5 rounded text-xs">UPDATE products</span>
+          <p class="text-slate-700 font-medium">أمر التحديث: يحدد اسم الجدول المستهدف في قاعدة البيانات للتعديل عليه.</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-blue-50 border border-blue-200 space-y-1">
+          <span class="font-code font-bold text-blue-800 bg-blue-200/80 px-2 py-0.5 rounded text-xs">SET column = ?</span>
+          <p class="text-slate-700 font-medium">التعيين: يحدد الأعمدة والقيم الجديدة. عند تعديل عمودين نضع فاصلة <span class="font-code font-bold">SET size=?, price=?</span>.</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-purple-50 border border-purple-200 space-y-1">
+          <span class="font-code font-bold text-purple-800 bg-purple-200/80 px-2 py-0.5 rounded text-xs">WHERE condition</span>
+          <p class="text-slate-700 font-medium">الشرط: أهم جزء لتحديد الصفوف المطلوبة فقط، وبدونه سيتم تعديل جميع صفوف الجدول بالكامل!</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1">
+          <span class="font-code font-bold text-emerald-800 bg-emerald-200/80 px-2 py-0.5 rounded text-xs">connection.commit()</span>
+          <p class="text-slate-700 font-medium">تأكيد الحفظ: كتابة التعديلات وحفظها نهائياً داخل ملف قاعدة البيانات <span class="font-code">RomaShop.db</span>.</p>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Code Explanation Drawer / Modal -->
+  <div id="explain-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h4 class="font-black text-slate-800 text-lg flex items-center gap-2">
+          <i class="fa-solid fa-code text-blue-600"></i> تفكيك وشرح كود بايثون
+        </h4>
+        <button onclick="toggleExplainCode()" class="text-slate-400 hover:text-slate-700 text-xl font-bold">✕</button>
+      </div>
+
+      <div class="space-y-2 text-xs sm:text-sm text-slate-700">
+        <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+          <strong class="font-code text-indigo-700">import sqlite3</strong>
+          <p>استيراد مكتبة التعامل مع قواعد بيانات SQLite المضمنة في بايثون.</p>
+        </div>
+        <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+          <strong class="font-code text-indigo-700">connection = sqlite3.connect('RomaShop.db')</strong>
+          <p>إنشاء قناة اتصال بملف قاعدة البيانات المسمى RomaShop.db.</p>
+        </div>
+        <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+          <strong class="font-code text-indigo-700">cursor = connection.cursor()</strong>
+          <p>إنشاء المؤشر (Cursor) المسؤول عن إرسال أوامر SQL واستقبال النتائج.</p>
+        </div>
+        <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+          <strong class="font-code text-indigo-700">cursor.execute(...)</strong>
+          <p>تنفيذ استعلام SQL مع تمرير المعاملات بأمان لحماية البيانات.</p>
+        </div>
+        <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+          <strong class="font-code text-indigo-700">connection.total_changes</strong>
+          <p>خاصية تقرأ عدد السجلات التي تأثرت أو تم تعديلها منذ فتح الاتصال.</p>
+        </div>
+      </div>
+
+      <button onclick="toggleExplainCode()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition text-sm">
+        إغلاق الشرح
+      </button>
+    </div>
+  </div>
+
+  <!-- Help & Concepts Modal -->
+  <div id="info-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h4 class="font-black text-slate-800 text-lg flex items-center gap-2">
+          <i class="fa-solid fa-graduation-cap text-yellow-500"></i> معلومات هامة عن النشاط
+        </h4>
+        <button onclick="toggleInfoModal()" class="text-slate-400 hover:text-slate-700 text-xl font-bold">✕</button>
+      </div>
+
+      <div class="text-slate-600 text-xs sm:text-sm space-y-3 leading-relaxed">
+        <p>• يحتوي هذا النشاط على نفس بيانات الملف والصور المرفقة لجدول <strong class="text-slate-900 font-code">products</strong> المكون من 11 صنفاً.</p>
+        <p>• يمكنك التبديل بين <span class="font-bold text-blue-600">الحالة الأولى</span> لتعديل صف مفرد، أو <span class="font-bold text-indigo-600">الحالة الثانية</span> لتعديل قيم متعددة في 5 صفوف تطابق شرط اللون الأسود.</p>
+        <p>• بالضغط على زر <span class="font-bold text-emerald-600">تشغيل الكود (Run)</span> سترى النتيجة فورياً في الطرفية كما في PyCharm، وتتحول الخلايا في الجدول بلون أخضر وتأثير بصري متحرك.</p>
+      </div>
+
+      <button onclick="toggleInfoModal()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition text-sm">
+        بدء التجربة
+      </button>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    // Initial dataset matching the uploaded image and SQLite DB exactly
+    const initialDataset = [
+      { id: 1, product: 'dress', size: 'small', color: 'red', price: 4.7 },
+      { id: 2, product: 'dress', size: 'small', color: 'red', price: 4.7 },
+      { id: 3, product: 'dress', size: 'xsmall', color: 'black', price: 4.7 },
+      { id: 4, product: 'dress', size: 'largre', color: 'blue', price: 4.7 },
+      { id: 5, product: 'dress', size: 'xlarge', color: 'red', price: 4.7 },
+      { id: 6, product: 'dress', size: 'medium', color: 'black', price: 6.0 },
+      { id: 7, product: 'pant', size: 'small', color: 'white', price: 7.0 },
+      { id: 8, product: 'pant', size: 'medium', color: 'black', price: 6.0 },
+      { id: 9, product: 'pant', size: 'large', color: 'black', price: 7.0 },
+      { id: 10, product: 'shirt', size: 'small', color: 'white', price: 9.0 },
+      { id: 11, product: 'shirt', size: 'xsmal', color: 'black', price: 9.0 }
+    ];
+
+    // Working copy
+    let currentData = JSON.parse(JSON.stringify(initialDataset));
+    let activeCase = 1;
+    let isExecuted = false;
+
+    // Syntax-highlighted code templates
+    const codeSnippets = {
+      1: `<span class="py-kw">import</span> sqlite3
+
+connection = sqlite3.<span class="py-fn">connect</span>(<span class="py-str">'RomaShop.db'</span>)
+cursor = connection.<span class="py-fn">cursor</span>()
+
+cursor.<span class="py-fn">execute</span>(<span class="py-str">'''UPDATE products 
+                  SET price=?
+                  WHERE id=?'''</span>, (<span class="py-num">9</span>, <span class="py-num">3</span>))
+
+<span class="py-fn">print</span>(<span class="py-str">'number of rows updated='</span>, connection.total_changes)
+
+connection.<span class="py-fn">commit</span>()
+connection.<span class="py-fn">close</span>()`,
+
+      2: `<span class="py-kw">import</span> sqlite3
+
+connection = sqlite3.<span class="py-fn">connect</span>(<span class="py-str">'RomaShop.db'</span>)
+cursor = connection.<span class="py-fn">cursor</span>()
+
+cursor.<span class="py-fn">execute</span>(<span class="py-str">'''UPDATE products 
+                  SET size=? ,price=?
+                  WHERE color=?'''</span>, (<span class="py-str">'large'</span>, <span class="py-num">13</span>, <span class="py-str">'black'</span>))
+
+<span class="py-fn">print</span>(<span class="py-str">'number of rows updated='</span>, connection.total_changes)
+
+connection.<span class="py-fn">commit</span>()
+connection.<span class="py-fn">close</span>()`
+    };
+
+    // Render Table in LTR format
+    function renderTable(affectedIds = [], changedFields = {}) {
+      const tbody = document.getElementById('table-rows');
+      tbody.innerHTML = '';
+
+      currentData.forEach((row, index) => {
+        const isTarget = affectedIds.includes(row.id);
+        const tr = document.createElement('tr');
+        tr.id = `row-${row.id}`;
+        tr.className = `transition-all duration-300 border-b border-slate-200 ${isTarget ? 'row-highlight bg-amber-50' : (index % 2 === 0 ? 'bg-white' : 'bg-slate-50/70')} hover:bg-indigo-50/50`;
+
+        const sizeChanged = isTarget && changedFields.size;
+        const priceChanged = isTarget && changedFields.price;
+
+        // Icon for product
+        let iconHtml = '<i class="fa-solid fa-shirt text-indigo-400"></i>';
+        if (row.product.includes('dress')) {
+          iconHtml = '<i class="fa-solid fa-person-dress text-pink-500"></i>';
+        } else if (row.product.includes('pant')) {
+          iconHtml = '<i class="fa-solid fa-vest-patches text-sky-600"></i>';
+        }
+
+        // Color badge styling
+        let colorTag = 'bg-slate-100 text-slate-700 border-slate-300';
+        let colorDot = '#64748b';
+        if (row.color === 'red') {
+          colorTag = 'bg-rose-100 text-rose-800 border-rose-300';
+          colorDot = '#ef4444';
+        } else if (row.color === 'black') {
+          colorTag = 'bg-slate-900 text-white border-black';
+          colorDot = '#0f172a';
+        } else if (row.color === 'blue') {
+          colorTag = 'bg-blue-100 text-blue-800 border-blue-300';
+          colorDot = '#3b82f6';
+        } else if (row.color === 'white') {
+          colorTag = 'bg-slate-100 text-slate-800 border-slate-300';
+          colorDot = '#cbd5e1';
+        }
+
+        tr.innerHTML = `
+          <td class="p-2 text-center bg-slate-100/80 text-slate-500 font-mono text-[11px] border-r border-slate-200">${index + 1}</td>
+          <td class="p-2 text-center font-bold font-mono text-slate-800 border-r border-slate-200">${row.id}</td>
+          <td class="p-2 font-semibold text-slate-700 border-r border-slate-200">
+            <span class="inline-flex items-center gap-1.5">${iconHtml} <span>${row.product}</span></span>
+          </td>
+          <td class="p-2 font-code border-r border-slate-200">
+            ${sizeChanged ? `<span class="cell-updated font-bold font-mono">${row.size}</span>` : `<span class="text-slate-700">${row.size}</span>`}
+          </td>
+          <td class="p-2 border-r border-slate-200">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${colorTag}">
+              <span class="w-2 h-2 rounded-full inline-block" style="background-color: ${colorDot}"></span>
+              ${row.color}
+            </span>
+          </td>
+          <td class="p-2 text-right font-mono font-bold border-r border-slate-200">
+            ${priceChanged ? `<span class="cell-updated font-mono">${parseFloat(row.price).toFixed(1)}</span>` : `<span class="text-slate-800">${parseFloat(row.price).toFixed(1)}</span>`}
+          </td>
+          <td class="p-2 text-center text-xs">
+            ${isTarget ? `<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full text-[10px] font-black animate-bounce shadow-sm">
+              <i class="fa-solid fa-sparkles text-amber-500"></i> تم التحديث
+            </span>` : `<span class="text-slate-400 text-[10px]">-</span>`}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Switch between Case 1 and Case 2
+    function switchCase(caseNum) {
+      activeCase = caseNum;
+      isExecuted = false;
+
+      // Update Tabs Style
+      const tab1 = document.getElementById('tab-btn-1');
+      const tab2 = document.getElementById('tab-btn-2');
+      const fileTab1 = document.getElementById('file-tab-1');
+      const fileTab2 = document.getElementById('file-tab-2');
+      const termTitle = document.getElementById('term-tab-title');
+
+      if (caseNum === 1) {
+        tab1.className = 'flex-1 py-3 px-4 rounded-xl font-extrabold flex items-center justify-between text-sm sm:text-base transition-all duration-300 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md';
+        tab2.className = 'flex-1 py-3 px-4 rounded-xl font-extrabold flex items-center justify-between text-sm sm:text-base transition-all duration-300 text-slate-600 hover:bg-slate-100';
+
+        fileTab1.className = 'cursor-pointer bg-[#2b2b2b] text-white text-xs font-code px-3 py-1.5 rounded-t-lg flex items-center gap-2 border-t-2 border-blue-500 shadow-sm';
+        fileTab2.className = 'cursor-pointer bg-[#232425] text-slate-400 hover:text-slate-200 text-xs font-code px-3 py-1.5 rounded-t-lg flex items-center gap-2 transition';
+
+        document.getElementById('ribbon-title').textContent = 'تحديث وتعديل سعر المنتج الذي يحمل المعرف id=3 ليصبح 9.0';
+        document.getElementById('ribbon-desc').innerHTML = 'نستخدم جملة <span class="font-code font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded">UPDATE products SET price=? WHERE id=?</span> مع تمرير القيم <span class="font-code font-bold">(9, 3)</span> للتأثير فقط على الفستان ذي المعرف 3.';
+        document.getElementById('target-count-badge').innerHTML = '<i class="fa-solid fa-bullseye text-indigo-600"></i> عدد الصفوف المتأثرة: <b class="font-code text-sm">1</b> صف';
+        
+        termTitle.textContent = 'ex1update';
+      } else {
+        tab2.className = 'flex-1 py-3 px-4 rounded-xl font-extrabold flex items-center justify-between text-sm sm:text-base transition-all duration-300 bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md';
+        tab1.className = 'flex-1 py-3 px-4 rounded-xl font-extrabold flex items-center justify-between text-sm sm:text-base transition-all duration-300 text-slate-600 hover:bg-slate-100';
+
+        fileTab2.className = 'cursor-pointer bg-[#2b2b2b] text-white text-xs font-code px-3 py-1.5 rounded-t-lg flex items-center gap-2 border-t-2 border-purple-500 shadow-sm';
+        fileTab1.className = 'cursor-pointer bg-[#232425] text-slate-400 hover:text-slate-200 text-xs font-code px-3 py-1.5 rounded-t-lg flex items-center gap-2 transition';
+
+        document.getElementById('ribbon-title').textContent = 'تعديل عمودين (size إلى large و price إلى 13.0) لكل المنتجات بلون black';
+        document.getElementById('ribbon-desc').innerHTML = 'نستخدم جملة <span class="font-code font-bold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">SET size=? ,price=? WHERE color=?</span> مع تمرير <span class="font-code font-bold">(\'large\', 13, \'black\')</span> لتعديل 5 صفوف معاً.';
+        document.getElementById('target-count-badge').innerHTML = '<i class="fa-solid fa-bullseye text-purple-600"></i> عدد الصفوف المتأثرة: <b class="font-code text-sm">5</b> صفوف';
+
+        termTitle.textContent = 'ex2update';
+      }
+
+      // Load code
+      document.getElementById('code-content').innerHTML = codeSnippets[caseNum];
+
+      // Reset Table View
+      currentData = JSON.parse(JSON.stringify(initialDataset));
+      renderTable();
+
+      // Reset Terminal Message
+      const term = document.getElementById('terminal-screen');
+      term.innerHTML = `<p class="text-slate-500 italic">> تم تحميل الملف ${caseNum === 1 ? 'ex1update.py' : 'ex2update.py'}. اضغط زر التشغيل (Run)...</p>`;
+      
+      document.getElementById('db-status-label').innerHTML = '<i class="fa-solid fa-circle-check"></i> جاهز للاستعلام';
+      document.getElementById('db-status-label').className = 'text-emerald-700 font-bold flex items-center gap-1.5';
+    }
+
+    // Execute Python Code and Update Database Table
+    function executeCurrentCode() {
+      const term = document.getElementById('terminal-screen');
+      const filename = activeCase === 1 ? 'ex1update.py' : 'ex2update.py';
+      
+      term.innerHTML = `
+        <p class="text-slate-400"><span class="text-slate-500">C:\\Python310\\python.exe</span> C:/Projects/RomaShop/${filename}</p>
+        <p class="text-yellow-400 font-bold"><i class="fa-solid fa-spinner fa-spin"></i> جاري الاتصال بقاعدة البيانات وتنفيذ جملة UPDATE...</p>
+      `;
+
+      setTimeout(() => {
+        let affectedIds = [];
+        let updatedCount = 0;
+        let changedFields = {};
+
+        if (activeCase === 1) {
+          // ex1update: SET price=9 WHERE id=3
+          affectedIds = [3];
+          updatedCount = 1;
+          changedFields = { price: true };
+
+          currentData = currentData.map(item => {
+            if (item.id === 3) {
+              return { ...item, price: 9.0 };
+            }
+            return item;
+          });
+
+        } else {
+          // ex2update: SET size='large', price=13 WHERE color='black'
+          affectedIds = [3, 6, 8, 9, 11];
+          updatedCount = 5;
+          changedFields = { size: true, price: true };
+
+          currentData = currentData.map(item => {
+            if (item.color === 'black') {
+              return { ...item, size: 'large', price: 13.0 };
+            }
+            return item;
+          });
+        }
+
+        // Render updated table with highlighting
+        renderTable(affectedIds, changedFields);
+
+        // Terminal Success Output matching python terminal
+        term.innerHTML = `
+          <p class="text-slate-400"><span class="text-slate-500">C:\\Python310\\python.exe</span> C:/Projects/RomaShop/${filename}</p>
+          <p class="text-emerald-400 font-bold">number of rows updated= ${updatedCount}</p>
+          <p class="text-slate-400">Process finished with exit code <span class="text-sky-400 font-bold">0</span></p>
+        `;
+
+        // DB Status text update
+        document.getElementById('db-status-label').innerHTML = `<i class="fa-solid fa-check-double text-emerald-600"></i> تم التحديث والحفظ (${updatedCount} صفوف)`;
+        document.getElementById('db-status-label').className = 'text-emerald-700 font-black flex items-center gap-1.5 animate-pulse';
+
+        // Trigger celebratory confetti effect
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.6 }
+        });
+
+        isExecuted = true;
+      }, 350);
+    }
+
+    // Reset Table to Initial State
+    function resetDatabase(showFeedback = true) {
+      currentData = JSON.parse(JSON.stringify(initialDataset));
+      renderTable();
+      isExecuted = false;
+
+      const term = document.getElementById('terminal-screen');
+      term.innerHTML = `<p class="text-slate-500 italic">> تمت إعادة ضبط الجدول إلى حالته الأولية من ملف RomaShop.db الأصلي.</p>`;
+
+      document.getElementById('db-status-label').innerHTML = '<i class="fa-solid fa-circle-check"></i> تمت إعادة التعيين';
+      document.getElementById('db-status-label').className = 'text-slate-700 font-bold flex items-center gap-1.5';
+
+      if (showFeedback) {
+        const ribbon = document.getElementById('case-ribbon');
+        ribbon.classList.add('ring-2', 'ring-amber-400');
+        setTimeout(() => ribbon.classList.remove('ring-2', 'ring-amber-400'), 1000);
+      }
+    }
+
+    function clearConsole() {
+      document.getElementById('terminal-screen').innerHTML = '<p class="text-slate-500 italic">> تم مسح مخرجات الطرفية.</p>';
+    }
+
+    function toggleExplainCode() {
+      const modal = document.getElementById('explain-modal');
+      modal.classList.toggle('hidden');
+    }
+
+    function toggleInfoModal() {
+      const modal = document.getElementById('info-modal');
+      modal.classList.toggle('hidden');
+    }
+
+    // Initialize application on window load
+    window.onload = function() {
+      switchCase(1);
+    };
+  </script>
+</body>
+</html>
